@@ -22,7 +22,7 @@ def _locate_templates():
     dirs = [first, second, third, fourth]
     for path in dirs:
         if os.path.isdir(os.path.join(path, "templates")):
-            return path
+            return os.path.join(path, "templates")
     raise ValueError(f"No templates found in: {dirs}")
 
 
