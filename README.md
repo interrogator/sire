@@ -1,6 +1,6 @@
 # sire: generate a new Python 3.7 project
 
-> Version 1.0.1
+> Version 1.0.2
 
 [![Build Status](https://travis-ci.org/interrogator/sire.svg?branch=master)](https://travis-ci.org/interrogator/sire)
 [![codecov.io](https://codecov.io/gh/interrogator/sire/branch/master/graph/badge.svg)](https://codecov.io/gh/interrogator/sire)
