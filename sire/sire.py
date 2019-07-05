@@ -105,7 +105,7 @@ def _filter_excluded(paths, exclude, mkdocs, virtualenv):
     Remove files the user does not want to generate...
     """
     filtered = list()
-    exclude = [i.strip().lower() for i in exclude.split(",")]
+    exclude = [i.strip().lower().lstrip(".") for i in exclude.split(",")]
     if "mkdocs" in exclude:
         print(f"* Skipping mkdocs/readthedocs because it is in the exclude list.")
         mkdocs = False
@@ -114,7 +114,7 @@ def _filter_excluded(paths, exclude, mkdocs, virtualenv):
         virtualenv = False
     # annoyingly, this could be a one-liner, but for print and so on we can't
     for path in paths:
-        no_pth = os.path.basename(path)
+        no_pth = os.path.basename(path).lstrip(".")
         no_ext = os.path.splitext(no_pth)[0]
         if no_pth.lower() in exclude or no_ext.lower() in exclude:
             print(f"* Skipping {path} because it is in the exclude list.")
@@ -129,18 +129,19 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
     optionally with a virtualenv and mkthedocs basics
     """
     paths = [
-        "tests/tests.py",
-        "requirements.txt",
-        "setup.py",
-        ".travis.yml",
-        f"{name}/__init__.py",
-        "CHANGELOG.md",
-        "mypy.ini",
         ".bumpversion.cfg",
         ".coveragerc",
+        ".flake8",
+        ".travis.yml",
+        "CHANGELOG.md",
         "LICENSE",
-        "README.md",
+        "mypy.ini",
         "publish.sh",
+        "README.md",
+        "requirements.txt",
+        "setup.py",
+        "tests/tests.py",
+        f"{name}/__init__.py",
     ]
 
     # remove things specific in includes
