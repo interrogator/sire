@@ -27,6 +27,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     packages=["sire"],
+    package_data={"sire": data_files},
     data_files=[("templates", data_files)],
     scripts=["bin/sire"],
     author_email="mcddjx@gmail.com",

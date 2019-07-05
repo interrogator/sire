@@ -9,9 +9,21 @@ import shutil
 import stat
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(__file__))
-TEMPLATES = os.path.join(ROOT, "templates")
-assert os.path.isdir(TEMPLATES)
+
+def _locate_templates():
+    root = os.path.dirname(os.path.dirname(__file__))
+    first = os.path.join(root, "templates")
+    second = os.path.join(os.dirname(__file__), "templates")
+    fpath = os.path.join(os.dirname(__file__))
+    third = os.path.dirname(fpath, "templates")
+    dirs = [first, second, third]
+    for path in dirs:
+        if os.path.isdir(path):
+            return path
+    raise ValueError(f"No templates found in: {dirs}")
+
+
+TEMPLATES = _locate_templates()
 
 
 class SafeDict(dict):
@@ -23,7 +35,7 @@ class SafeDict(dict):
         return "{" + key + "}"
 
 
-def write(proj, outpath):
+def _write(proj, outpath):
     """
     Get the filename from outpath
     read it from templates dir
@@ -66,7 +78,7 @@ def sire(name, mkdocs=False, virtualenv=False):
     ]
 
     for path in paths:
-        write(name, path)
+        _write(name, path)
 
     # make publish executable
     st = os.stat(f"{name}/publish.sh")
@@ -89,7 +101,7 @@ def sire(name, mkdocs=False, virtualenv=False):
     # mkthedocs additions
     os.makedirs(os.path.join(name, "docs"))
     for path in ["mkdocs.yml", "docs/index.md", "docs/about.md"]:
-        write(name, path)
+        _write(name, path)
     print("* mkdocs generated. Configure readthedocs and a git hook")
 
 
