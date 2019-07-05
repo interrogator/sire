@@ -1,4 +1,4 @@
-# sire
+# sire: generate a new Python 3.7 project
 
 > Version 0.0.5
 
@@ -16,8 +16,44 @@ pip install sire
 git clone https://github.com/interrogator/sire && cd sire && python.setup.py install
 ```
 
-## Getting started
+## Usage
+
+Bash:
+
+```bash
+sire --mkdocs --virtualenv <project_name>
+# or
+python -m sire.sire mkdocs virtualenv <project_name>
+```
+
+From inside Python (why?):
 
 ```python
 from sire import sire
+sire('project name', mkdocs=True, virtualenv=True)
 ```
+
+Currently includes:
+
+* Optional mkdocs
+* Optional virtualenv
+* git initialisation
+* Python .gitignore
+* .coveragerc
+* .travis.yml
+* requirements.txt (with black, isort etc)
+* basic setup.py
+* publish.sh (a script for running tests and authoring a new version)
+* mypy.ini
+* MIT License
+* Empty CHANGELOG
+* .pre-commit-config.yaml
+* bumpversion.cfg
+
+## Triva
+
+*sire* actually generated itself.
+
+## Contributing
+
+I don't really expect other people to want this, but you are more than welcome to submit pull/feature requests anyway.
