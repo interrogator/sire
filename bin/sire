@@ -1,41 +1,13 @@
 #!/usr/bin/env python
 
-import argparse
-from sire.sire import sire
-
 """
 sire (i.e. generate) a new python project
 
-:Example:
+Example
 
-$ sire --mkdocs --virtualenv junglebook
-
+$ sire --mkdocs=true/false --virtualenv=true/false junglebook
 """
 
-parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
+from sire.sire import wrapped_sire, _parse_cmdline_args
 
-parser.add_argument(
-    "-m",
-    "--mkdocs",
-    nargs="?",
-    default=True,
-    type=bool,
-    required=False,
-    help="Generate files for mkdocs/readthedocs",
-)
-
-parser.add_argument(
-    "-v",
-    "--virtualenv",
-    nargs="?",
-    default=True,
-    type=bool,
-    required=False,
-    help="Generate a virtualenv for this project",
-)
-
-parser.add_argument("name", help="Name of the new")
-
-kwargs = vars(parser.parse_args())
-
-corpus = sire(**kwargs)
+wrapped_sire(**_parse_cmdline_args())

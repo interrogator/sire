@@ -4,10 +4,57 @@
 sire: create a new python3.7 project using all the extra stuff i like.
 """
 
+import argparse
 import os
 import shutil
 import stat
+import subprocess
 import sys
+
+
+def _parse_cmdline_args():
+
+    parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
+
+    parser.add_argument(
+        "-e",
+        "--exclude",
+        nargs="?",
+        type=str,
+        required=False,
+        help="Comma separated files/modules to exclude (travis,mypy,__init__...)",
+    )
+
+    parser.add_argument(
+        "-m",
+        "--mkdocs",
+        default=True,
+        action="store_true",
+        required=False,
+        help="Generate files for mkdocs/readthedocs",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--virtualenv",
+        default=True,
+        action="store_true",
+        required=False,
+        help="Generate a virtualenv for this project",
+    )
+
+    parser.add_argument(
+        "-g",
+        "--git",
+        default=True,
+        action="store_true",
+        required=False,
+        help="Generate .git, .gitignore and hook(s)",
+    )
+
+    parser.add_argument("name", help="Name of the new Python project")
+
+    return vars(parser.parse_args())
 
 
 def _locate_templates():
@@ -53,16 +100,34 @@ def _write(proj, outpath):
         fo.write(formatted.strip() + "\n")
 
 
-def sire(name, mkdocs=False, virtualenv=False):
+def _filter_excluded(paths, exclude, mkdocs, virtualenv):
+    """
+    Remove files the user does not want to generate...
+    """
+    filtered = list()
+    exclude = [i.strip().lower() for i in exclude.split(",")]
+    if "mkdocs" in exclude:
+        print(f"* Skipping mkdocs/readthedocs because it is in the exclude list.")
+        mkdocs = False
+    if "virtualenv" in exclude:
+        print(f"* Skipping virtualenv creation because it is in the exclude list.")
+        virtualenv = False
+    # annoyingly, this could be a one-liner, but for print and so on we can't
+    for path in paths:
+        no_pth = os.path.basename(path)
+        no_ext = os.path.splitext(no_pth)[0]
+        if no_pth.lower() in exclude or no_ext.lower() in exclude:
+            print(f"* Skipping {path} because it is in the exclude list.")
+            continue
+        filtered.append(path)
+    return filtered, mkdocs, virtualenv
+
+
+def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
     """
     Generate a new Python 3.7 project with .git, and
     optionally with a virtualenv and mkthedocs basics
     """
-    os.system(f"git init {name}")
-
-    os.makedirs(os.path.join(name, name))
-    os.makedirs(os.path.join(name, "tests"))
-
     paths = [
         "tests/tests.py",
         "requirements.txt",
@@ -73,13 +138,31 @@ def sire(name, mkdocs=False, virtualenv=False):
         "mypy.ini",
         ".bumpversion.cfg",
         ".coveragerc",
-        ".gitignore",
         "LICENSE",
         "README.md",
-        ".pre-commit-config.yaml",
         "publish.sh",
     ]
 
+    # remove things specific in includes
+    # also, if the user does exclude=mkdocs/virtualenv, flag these
+    if exclude:
+        paths, mkdocs, virtualenv = _filter_excluded(paths, exclude, mkdocs, virtualenv)
+
+    # add git extras if the user wants
+    if git:
+        subprocess.call(f"git init {name}".split())
+        paths += [".gitignore", ".pre-commit-config.yaml"]
+
+    # make module and test dirs
+    os.makedirs(os.path.join(name, name))
+    os.makedirs(os.path.join(name, "tests"))
+
+    # mkdocs extras
+    if mkdocs:
+        os.makedirs(os.path.join(name, "docs"))
+        paths += ["mkdocs.yml", "docs/index.md", "docs/about.md", ".readthedocs.yaml"]
+
+    # format and copy over the paths
     for path in paths:
         _write(name, path)
 
@@ -90,32 +173,30 @@ def sire(name, mkdocs=False, virtualenv=False):
     # virtualenv stuff
     if virtualenv:
         print("Making virtualenv and installing dependencies")
-        os.system(f"python3.7 -m venv {name}/venv-{name}")
+        subprocess.call(f"python3.7 -m venv {name}/venv-{name}".split())
         pip = os.path.abspath(f"{name}/venv-{name}/bin/pip")
-        os.system(f"{pip} install wheel")
-        os.system(f"{pip} install -r {name}/requirements.txt")
+        subprocess.call(f"{pip} install wheel".split())
+        subprocess.call(f"{pip} install -r {name}/requirements.txt".split())
         vfile = os.path.join(os.path.dirname(pip), "activate")
         print(f"\n* virtualenv created: activate with `source {vfile}`")
 
-    if not mkdocs:
-        print("* mkdocs not used; please remove RTD badge from README")
-        return
+    print(f"All done! `cd {name}` to check out your new project.")
 
-    # mkthedocs additions
-    os.makedirs(os.path.join(name, "docs"))
-    for path in ["mkdocs.yml", "docs/index.md", "docs/about.md"]:
-        _write(name, path)
-    print("* mkdocs generated. Configure readthedocs and a git hook")
+
+def wrapped_sire(**kwargs):
+    """
+    Make sure that the directory is deleted if there is an error during sire
+    """
+    try:
+        sire(**kwargs)
+    except KeyboardInterrupt:
+        print("Process stopped by user. Aborting and cleaning up ...")
+        shutil.rmtree(kwargs["name"])
+    except Exception:
+        print("Error during project creation. Aborting and cleaning up ...")
+        shutil.rmtree(kwargs["name"])
+        raise
 
 
 if __name__ == "__main__":
-    # sorry about the below, i am so lazy
-    assert len(sys.argv) > 1, "Please pass in a project name."
-    project_name = sys.argv[-1]
-    mkdocs = any("mkdocs" in i or "-m" in i for i in sys.argv)
-    virtualenv = any("virtualenv" in i or "-v" in i for i in sys.argv)
-    try:
-        sire(project_name, mkdocs=mkdocs, virtualenv=virtualenv)
-    except Exception:
-        shutil.rmtree(project_name)
-        raise
+    wrapped_sire(**_parse_cmdline_args())
