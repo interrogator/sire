@@ -9,7 +9,8 @@ import shutil
 import stat
 import sys
 
-TEMPLATES = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+ROOT = os.path.dirname(os.path.dirname(__file__))
+TEMPLATES = os.path.join(ROOT, "templates")
 assert os.path.isdir(TEMPLATES)
 
 
@@ -39,7 +40,8 @@ def write(proj, outpath):
 
 def sire(name, mkdocs=False, virtualenv=False):
     """
-    Generate a new Python 3.7 project, optionally with a virtualenv and mkthedocs basics
+    Generate a new Python 3.7 project with .git, and
+    optionally with a virtualenv and mkthedocs basics
     """
     os.system(f"git init {name}")
 
@@ -81,7 +83,7 @@ def sire(name, mkdocs=False, virtualenv=False):
         print(f"\n* virtualenv created: activate with `source {vfile}`")
 
     if not mkdocs:
-        print("* Since you're not using mkdocs, please remove RTD badge from README")
+        print("* mkdocs not used; please remove RTD badge from README")
         return
 
     # mkthedocs additions
