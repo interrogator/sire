@@ -1,0 +1,8 @@
+site_name: {name} docs
+
+theme:
+    name: readthedocs
+
+nav:
+    - Home: index.md
+    - About: about.md
