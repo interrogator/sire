@@ -18,7 +18,7 @@ data_files = [
 
 setup(
     name="sire",
-    version="0.0.5",
+    version="1.0.0",
     description="Python project generator",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
