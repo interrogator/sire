@@ -7,5 +7,6 @@ mypy
 codecov
 isort
 bump2version
+twine
 
 # Requirements of the package
