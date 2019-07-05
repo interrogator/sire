@@ -11,14 +11,17 @@ import sys
 
 
 def _locate_templates():
-    root = os.path.dirname(os.path.dirname(__file__))
-    first = os.path.join(root, "templates")
-    second = os.path.join(os.dirname(__file__), "templates")
-    fpath = os.path.join(os.dirname(__file__))
-    third = os.path.dirname(fpath, "templates")
-    dirs = [first, second, third]
+    """
+    templates dir seems to move around depending on how you install!?
+    """
+    fpath = os.path.dirname(__file__)
+    first = os.path.dirname(fpath)
+    second = os.path.dirname(first)
+    third = sys.prefix
+    fourth = os.path.join(third, "sire")
+    dirs = [first, second, third, fourth]
     for path in dirs:
-        if os.path.isdir(path):
+        if os.path.isdir(os.path.join(path, "templates")):
             return path
     raise ValueError(f"No templates found in: {dirs}")
 
