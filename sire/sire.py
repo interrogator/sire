@@ -9,8 +9,8 @@ import shutil
 import stat
 import sys
 
-TEMPLATES_PATH = os.path.join(os.path.dirname(__file__), "templates")
-assert os.path.isdir(TEMPLATES_PATH)
+TEMPLATES = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+assert os.path.isdir(TEMPLATES)
 
 
 class SafeDict(dict):
@@ -30,7 +30,7 @@ def write(proj, outpath):
     write to outpath
     """
     fname = os.path.basename(outpath)
-    template = os.path.join(TEMPLATES_PATH, fname)
+    template = os.path.join(TEMPLATES, fname)
     with open(template, "r") as fo:
         formatted = fo.read().format_map(SafeDict(name=proj))
     with open(os.path.join(proj, outpath), "w") as fo:
