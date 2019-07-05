@@ -12,7 +12,7 @@ def read(fname):
 
 setup(
     name="sire",
-    version="0.0.3",
+    version="0.0.4",
     description="",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
