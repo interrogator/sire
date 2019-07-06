@@ -11,10 +11,37 @@ import stat
 import subprocess
 import sys
 
+PATHS = {
+    ".bumpversion.cfg",
+    ".coveragerc",
+    ".flake8",
+    ".travis.yml",
+    "CHANGELOG.md",
+    "LICENSE",
+    "mypy.ini",
+    "publish.sh",
+    "README.md",
+    "requirements.txt",
+    "setup.py",
+    "tests/tests.py",
+    "{name}/__init__.py",
+}
+
+# the below just helps with interpreting exclude patterns, so that 'codecov'
+# will remove .coveragerc, and so on
+EXCLUDE_TRANSLATIONS = dict(
+    codecov="coveragerc",
+    coverage="coveragerc",
+    bump2version="bumpversion.cfg",
+    test="tests.py",
+)
+
 
 def _parse_cmdline_args():
 
     parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
+    extra = [os.path.basename(os.path.splitext(i)[0]).strip(".").lower() for i in PATHS]
+    paths = "/".join(sorted(extra))
 
     parser.add_argument(
         "-e",
@@ -22,7 +49,7 @@ def _parse_cmdline_args():
         nargs="?",
         type=str,
         required=False,
-        help="Comma separated files/modules to exclude (travis,mypy,__init__...)",
+        help=f"Comma separated files/modules to exclude. Any of: {paths}",
     )
 
     parser.add_argument(
@@ -96,28 +123,45 @@ def _write(proj, outpath):
     template = os.path.join(TEMPLATES, fname)
     with open(template, "r") as fo:
         formatted = fo.read().format_map(SafeDict(name=proj))
-    with open(os.path.join(proj, outpath), "w") as fo:
+    with open(os.path.join(proj, outpath.format(name=proj)), "w") as fo:
         fo.write(formatted.strip() + "\n")
 
 
-def _filter_excluded(paths, exclude, **kwargs):
+def _make_todos(name, paths, mkdocs, git):
+    """
+    Make a formatted list of things to do from here
+    """
+    todos = [f"Actually write some tests: {name}/tests.py"]
+    if ".coveragerc" in paths:
+        todos.append("Set up codecov and a git hook for it.")
+    if mkdocs:
+        todos.append("Set up a readthedocs and a git hook for it.")
+    if git:
+        url = f"git remote set-url origin https://github.com/<user>/{name}"
+        todos.append(f"Set git remote: (e.g.) {url}")
+    return "\n* ".join(todos)
+
+
+def _filter_excluded(exclude, **kwargs):
     """
     Remove files the user does not want to generate...
     """
-    filtered = list()
-    exclude = [i.strip().lower().lstrip(".") for i in exclude.split(",")]
+    filtered = set()
+    trans_exclude = set()
+    exclude = {i.strip().lower().lstrip(".") for i in exclude.split(",")}
+    trans_exclude = {EXCLUDE_TRANSLATIONS.get(i, i) for i in exclude}
     for name in kwargs:
-        if name in exclude:
+        if name in trans_exclude:
             print(f"* Skipping {name} because it is in the exclude list.")
             kwargs[name] = False
     # annoyingly, this could be a one-liner, but for print and so on we can't
-    for path in paths:
+    for path in PATHS:
         no_pth = os.path.basename(path).lstrip(".")
         no_ext = os.path.splitext(no_pth)[0]
-        if no_pth.lower() in exclude or no_ext.lower() in exclude:
+        if no_pth.lower() in trans_exclude or no_ext.lower() in trans_exclude:
             print(f"* Skipping {path} because it is in the exclude list.")
             continue
-        filtered.append(path)
+        filtered.add(path)
     return filtered, kwargs["mkdocs"], kwargs["virtualenv"], kwargs["git"]
 
 
@@ -126,32 +170,20 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
     Generate a new Python 3.7 project, optionally with .git, virtualenv and
     mkthedocs basics present too.
     """
-    paths = [
-        ".bumpversion.cfg",
-        ".coveragerc",
-        ".flake8",
-        ".travis.yml",
-        "CHANGELOG.md",
-        "LICENSE",
-        "mypy.ini",
-        "publish.sh",
-        "README.md",
-        "requirements.txt",
-        "setup.py",
-        "tests/tests.py",
-        f"{name}/__init__.py",
-    ]
-
+    dirname = os.path.abspath(f"./{name}")
+    print(f"\nGenerating new project at `{dirname}`...")
     # remove things specific in includes
     # also, if the user does exclude=mkdocs/virtualenv, flag these
     if exclude:
         extra = dict(mkdocs=mkdocs, virtualenv=virtualenv, git=git)
-        paths, mkdocs, virtualenv, git = _filter_excluded(paths, exclude, **extra)
+        paths, mkdocs, virtualenv, git = _filter_excluded(exclude, **extra)
+    else:
+        paths = PATHS
 
     # add git extras if the user wants
     if git:
         subprocess.call(f"git init {name}".split())
-        paths += [".gitignore", ".pre-commit-config.yaml"]
+        paths.update({".gitignore", ".pre-commit-config.yaml"})
 
     # make module and test dirs
     os.makedirs(os.path.join(name, name))
@@ -160,7 +192,9 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
     # mkdocs extras
     if mkdocs:
         os.makedirs(os.path.join(name, "docs"))
-        paths += ["mkdocs.yml", "docs/index.md", "docs/about.md", ".readthedocs.yaml"]
+        paths.update(
+            {"mkdocs.yml", "docs/index.md", "docs/about.md", ".readthedocs.yaml"}
+        )
 
     # format and copy over the paths
     for path in paths:
@@ -180,7 +214,12 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
         vfile = os.path.join(os.path.dirname(pip), "activate")
         print(f"\n* virtualenv created: activate with `source {vfile}`")
 
-    print(f"All done! `cd {name}` to check out your new project.")
+    todos = _make_todos(name, paths, mkdocs, git)
+
+    print(
+        f"\nAll done! `cd {name}` to check out your new project."
+        f"\n\nTo do:\n\n* {todos}\n"
+    )
 
 
 def wrapped_sire(**kwargs):
@@ -191,10 +230,10 @@ def wrapped_sire(**kwargs):
         sire(**kwargs)
     except KeyboardInterrupt:
         print("Process stopped by user. Aborting and cleaning up ...")
-        shutil.rmtree(kwargs["name"])
+        shutil.rmtree(kwargs["name"], ignore_errors=True)
     except Exception:
         print("Error during project creation. Aborting and cleaning up ...")
-        shutil.rmtree(kwargs["name"])
+        shutil.rmtree(kwargs["name"], ignore_errors=True)
         raise
 
 
