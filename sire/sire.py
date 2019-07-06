@@ -28,7 +28,7 @@ def _parse_cmdline_args():
     parser.add_argument(
         "-m",
         "--mkdocs",
-        default=True,
+        default=False,
         action="store_true",
         required=False,
         help="Generate files for mkdocs/readthedocs",
@@ -37,7 +37,7 @@ def _parse_cmdline_args():
     parser.add_argument(
         "-v",
         "--virtualenv",
-        default=True,
+        default=False,
         action="store_true",
         required=False,
         help="Generate a virtualenv for this project",
@@ -46,7 +46,7 @@ def _parse_cmdline_args():
     parser.add_argument(
         "-g",
         "--git",
-        default=True,
+        default=False,
         action="store_true",
         required=False,
         help="Generate .git, .gitignore and hook(s)",
@@ -100,18 +100,16 @@ def _write(proj, outpath):
         fo.write(formatted.strip() + "\n")
 
 
-def _filter_excluded(paths, exclude, mkdocs, virtualenv):
+def _filter_excluded(paths, exclude, **kwargs):
     """
     Remove files the user does not want to generate...
     """
     filtered = list()
     exclude = [i.strip().lower().lstrip(".") for i in exclude.split(",")]
-    if "mkdocs" in exclude:
-        print(f"* Skipping mkdocs/readthedocs because it is in the exclude list.")
-        mkdocs = False
-    if "virtualenv" in exclude:
-        print(f"* Skipping virtualenv creation because it is in the exclude list.")
-        virtualenv = False
+    for name in kwargs:
+        if name in exclude:
+            print(f"* Skipping {name} because it is in the exclude list.")
+            kwargs[name] = False
     # annoyingly, this could be a one-liner, but for print and so on we can't
     for path in paths:
         no_pth = os.path.basename(path).lstrip(".")
@@ -120,13 +118,13 @@ def _filter_excluded(paths, exclude, mkdocs, virtualenv):
             print(f"* Skipping {path} because it is in the exclude list.")
             continue
         filtered.append(path)
-    return filtered, mkdocs, virtualenv
+    return filtered, kwargs["mkdocs"], kwargs["virtualenv"], kwargs["git"]
 
 
 def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
     """
-    Generate a new Python 3.7 project with .git, and
-    optionally with a virtualenv and mkthedocs basics
+    Generate a new Python 3.7 project, optionally with .git, virtualenv and
+    mkthedocs basics present too.
     """
     paths = [
         ".bumpversion.cfg",
@@ -147,7 +145,8 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
     # remove things specific in includes
     # also, if the user does exclude=mkdocs/virtualenv, flag these
     if exclude:
-        paths, mkdocs, virtualenv = _filter_excluded(paths, exclude, mkdocs, virtualenv)
+        extra = dict(mkdocs=mkdocs, virtualenv=virtualenv, git=git)
+        paths, mkdocs, virtualenv, git = _filter_excluded(paths, exclude, **extra)
 
     # add git extras if the user wants
     if git:
