@@ -6,7 +6,7 @@ echo "Doing $1 update"
 
 # use python 3.7 virtualenv
 proj=${PWD##*/}
-source "venv-$proj/bin/activate"
+source ~/venv/py4/bin/activate
 
 # check formatting
 flake8 sire/* tests/* setup.py
@@ -26,7 +26,7 @@ bump2version $1
 python setup.py bdist_egg sdist
 
 # upload
-twine upload dist/*
+twine upload --username {username} dist/*
 
 # push to github
 git push origin master --follow-tags

@@ -3,13 +3,14 @@
 """
 sire: create a new python3.7 project using all the extra stuff i like.
 """
-from collections import OrderedDict
 import argparse
+import getpass
 import os
 import shutil
 import stat
 import subprocess
 import sys
+from collections import OrderedDict
 
 # here we store the out paths that will be generated. not included are git and
 # mkdocs-related files, as they are added in later if the user requests them
@@ -124,9 +125,10 @@ def _parse_cmdline_args():
         help="Generate .git, .gitignore and hook(s)",
     )
 
-    parser.add_argument("name", help="Name of the new Python project")
+    parser.add_argument("project_name", help="Name of the new Python project")
 
     kwargs = vars(parser.parse_args())
+    kwargs["name"] = kwargs.pop("project_name")
 
     return _clean_kwargs(kwargs)
 
@@ -165,7 +167,7 @@ def _write(proj, outpath, formatters):
         fo.write(formatted.strip() + "\n")
 
 
-def _make_todos(name, paths, mkdocs, git):
+def _make_todos(name, paths, mkdocs, git, github_username):
     """
     Make a formatted str of things to do from here. Mostly so the user can copy
     """
@@ -176,7 +178,7 @@ def _make_todos(name, paths, mkdocs, git):
         rtd = "https://readthedocs.org/dashboard/import"
         todos.append(f"Set up a readthedocs and a git hook for it: {rtd}")
     if git:
-        url = f"git remote set-url origin https://github.com/<user>/{name}"
+        url = f"git remote set-url origin https://github.com/{github_username}/{name}"
         todos.append(f"Set git remote: (e.g.) {url}")
     return "\n* ".join(todos)
 
@@ -218,12 +220,20 @@ def _build_virtualenv(name):
 
 
 def _input_wrap(prompt, default=None):
-    result = input(prompt.format(default=default) + "\n")
-    if result.strip() in {"", "y", "yes"}:
-        return default
-    if result.strip() in {"quit", "q", "exit"}:
-        raise RuntimeError("User quit.")
-    return result.strip()
+    understood = False
+    while not understood:
+        result = input(prompt.format(default=default)).lower().strip()
+        if result in {"y", "yes"}:
+            return True
+        if result in {"n", "no"}:
+            return False
+        if not result:
+            return default
+        if result in {"quit", "q", "exit"}:
+            raise RuntimeError("User quit.")
+        if not isinstance(default, bool):
+            return result
+        print("Error: answer not understood")
 
 
 def _interactive(name, **kwargs):
@@ -231,24 +241,34 @@ def _interactive(name, **kwargs):
     Interactive assistant
     """
     prompt = (
-        "This is the interactive helper for *sire*. Details entered here will "
-        "determine which files are included, and format them with the correct "
-        "information. Leaving a field blank is OK, but can result in incompletely "
-        "formatted files. Hit enter to begin, or type 'quit' to quit."
+        "\n========================================================================\n"
+        "This is the interactive helper for *sire*. Details entered here will \n"
+        "determine which files are included, and format them with the correct \n"
+        "information. Leaving a field blank is OK, but can result in incompletely \n"
+        "formatted files. Hit enter to begin, or type 'quit' to quit.\n"
+        "========================================================================\n\n"
     )
     _input_wrap(prompt)
     output = dict()
 
+    usr = getpass.getuser()
+    email = "git config user.email".split()
+    email = subprocess.check_output(email).decode("utf-8").strip()
+    real_name = "git config user.name".split()
+    real_name = subprocess.check_output(real_name).decode("utf-8").strip()
+    exes = "Comma separated list of files to exclude (e.g. travis/mypy/bumpversion):  "
+
     prompts = OrderedDict(
-        description=("One-line project description:", None),
-        real_name=("Real name:", None),
-        username=("Username:", None),
-        email=("Email:", None),
-        github_username=("GitHub username: ({default})", "USERNAME?"),
-        license=("Licence to use: ({default})", "MIT"),
-        mkdocs=("Use mkdocs/readthedocs for documentation: ({default})", False),
-        virtualenv=("Generate a virtualenv for this project: ({default})", False),
-        git=("Initialise as a git repo: ({default})", False),
+        real_name=("Real name (for license, setup.py) ({default}):  ", real_name),
+        username=("Username ({default}):  ", usr),
+        email=("Email ({default}):  ", email),
+        github_username=("GitHub username ({default}):  ", usr),
+        description=("Short project description:  ", None),
+        # license=("Licence to use: ({default})", "MIT"),
+        mkdocs=("Use mkdocs/readthedocs for documentation (y/N):  ", False),
+        virtualenv=("Generate a virtualenv for this project (y/N):  ", False),
+        git=("Initialise as a git repo (y/N):  ", False),
+        exclude=(exes, set()),
     )
 
     for field, (prompt, default) in prompts.items():
@@ -263,6 +283,13 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     """
     kwargs = dict(mkdocs=mkdocs, virtualenv=virtualenv, git=git, exclude=exclude)
     formatters = dict() if not interactive else _interactive(name, **kwargs)
+    if interactive:
+        mkdocs, virtualenv, git, exclude = (
+            formatters.pop("mkdocs"),
+            formatters.pop("virtualenv"),
+            formatters.pop("git"),
+            formatters.pop("exclude"),
+        )
 
     # print abspath because user might want it for copying...
     dirname = os.path.abspath(f"./{name}")
@@ -297,7 +324,8 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     if virtualenv:
         _build_virtualenv(name)
 
-    todos = _make_todos(name, paths, mkdocs, git)
+    gh_username = formatters.get("github_username", "<username>")
+    todos = _make_todos(name, paths, mkdocs, git, gh_username)
 
     final = f"\nAll done! `cd {name}` to check out your new project."
     if todos:
