@@ -10,7 +10,6 @@ import shutil
 import stat
 import subprocess
 import sys
-from collections import OrderedDict
 
 # here we store the out paths that will be generated. not included are git and
 # mkdocs-related files, as they are added in later if the user requests them
