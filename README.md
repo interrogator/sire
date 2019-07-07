@@ -43,17 +43,17 @@ sire('project_name', mkdocs=True, virtualenv=True, git=True)
 
 Pure Python:
 
-* proj_name/proj_name.py
-* proj_name/__init__.py
-* setup.py
-* requirements.txt (with black, isort, flake8 etc)
-* tests/tests.py
+* `<project_name>/<project_name>.py`
+* `<project_name>/__init__.py`
+* `setup.py`
+* `requirements.txt` (with *black*, *isort*, *flake8* etc)
+* `tests/tests.py`
 
 Optional extras:
 
-* mkdocs (.readthedocs.yaml, ./docs, .mkdocs.yml)
-* virtualenv virtualenv (with dependencies installed)
-* git (.git, .gitignore, .pre-commit-config.yaml)
+* mkdocs (`.readthedocs.yaml`, `./docs`, `.mkdocs.yml`)
+* irtualenv (with dependencies installed)
+* git (`.git`, `.gitignore`, `.pre-commit-config.yaml`)
 
 Each of these has an associated flag:
 
@@ -63,13 +63,13 @@ sire -v/--virtualenv -m/--mkdocs -g/--git projname
 
 Other files
 
-* .coveragerc
-* .travis.yml
-* publish.sh (a script for running tests and authoring a new version)
-* mypy.ini
+* `.coveragerc`
+* `.travis.yml`
+* `publish.sh` (a script for running tests and authoring a new version)
+* `mypy.ini`
 * MIT License
-* Empty CHANGELOG
-* .bumpversion.cfg
+* Empty `CHANGELOG`
+* `.bumpversion.cfg`
 
 If you want to skip any of these files, use the `--exclude` option with comma separation:
 
@@ -89,7 +89,7 @@ There are dozens of possible new features that could be added, which I'd persona
 
 * a `--license` option, to choose the correct license file
 * Setting git remote automatically (get github username from git global config?)
-* Deleting irrelevant strings --- if no codecoverage, remove the associated badge for example
-* Probably more code could be automatically generated and added for the main and test .py files
+* Deleting irrelevant strings --- if no *codecoverage*, remove the associated badge for example
+* Probably more code could be automatically generated and added for the main and test `.py` files
 
 While I'd love to have these in *sire*, coding them will take me longer than doing it manually a few times. So, unless this repo somehow becomes popular or finds some new contributors, don't expect any of this stuff to get done in a hurry, unless you add it yourself.
