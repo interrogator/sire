@@ -1,4 +1,6 @@
-# sire: generate a new Python 3.7 project
+# sire
+
+> *sire* is a command that generates Python 3.7 project templates, with git, travis, mypy (etc.) support.
 
 > Version 1.0.2
 
@@ -18,42 +20,76 @@ git clone https://github.com/interrogator/sire && cd sire && python.setup.py ins
 
 ## Usage
 
-Bash:
+```bash
+sire --mkdocs --virtualenv --git --exclude=mypy <project_name>
+```
+
+## Alternative usages (not recommended)
+
+As Python module:
 
 ```bash
-sire --mkdocs --virtualenv <project_name>
-# or
 python -m sire.sire mkdocs virtualenv <project_name>
 ```
 
-From inside Python (why?):
+Or from inside Python (why?):
 
 ```python
 from sire import sire
-sire('project name', mkdocs=True, virtualenv=True)
+sire('project_name', mkdocs=True, virtualenv=True, git=True)
 ```
 
-Currently includes:
+### What gets generated
 
-* Optional mkdocs
-* Optional virtualenv
-* git initialisation
-* Python .gitignore
+Pure Python:
+
+* proj_name/proj_name.py
+* proj_name/__init__.py
+* setup.py
+* requirements.txt (with black, isort, flake8 etc)
+* tests/tests.py
+
+Optional extras:
+
+* mkdocs (.readthedocs.yaml, ./docs, .mkdocs.yml)
+* virtualenv virtualenv (with dependencies installed)
+* git (.git, .gitignore, .pre-commit-config.yaml)
+
+Each of these has an associated flag:
+
+```bash
+sire -v/--virtualenv -m/--mkdocs -g/--git projname
+```
+
+Other files
+
 * .coveragerc
 * .travis.yml
-* requirements.txt (with black, isort etc)
-* basic setup.py
 * publish.sh (a script for running tests and authoring a new version)
 * mypy.ini
 * MIT License
 * Empty CHANGELOG
-* .pre-commit-config.yaml
-* bumpversion.cfg
+* .bumpversion.cfg
 
-## Triva
+If you want to skip any of these files, use the `--exclude` option with comma separation:
 
-*sire* actually generated itself.
+```bash
+sire --exclude=travis,setup.py,mypy projname
+```
+
+## Trivia
+
+* *sire* actually generated itself.
 
 ## Contributing
 
-I don't really expect other people to want this, but you are more than welcome to submit pull/feature requests anyway.
+I don't really expect many other people to want this, because it's mostly tailored to my specific ideas about how a Pthon project should look. That said, if you do find this projet useful, you are more than welcome to submit pull/feature requests!
+
+There are dozens of possible new features that could be added, which I'd personally quite like:
+
+* a `--license` option, to choose the correct license file
+* Setting git remote automatically (get github username from git global config?)
+* Deleting irrelevant strings --- if no codecoverage, remove the associated badge for example
+* Probably more code could be automatically generated and added for the main and test .py files
+
+While I'd love to have these in *sire*, coding them will take me longer than doing it manually a few times. So, unless this repo somehow becomes popular or finds some new contributors, don't expect any of this stuff to get done in a hurry, unless you add it yourself.
