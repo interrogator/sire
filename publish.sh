@@ -26,7 +26,7 @@ bump2version $1
 python setup.py bdist_egg sdist
 
 # upload
-twine upload --username {username} dist/*
+twine upload dist/*
 
 # push to github
 git push origin master --follow-tags
