@@ -3,7 +3,7 @@
 """
 sire: create a new python3.7 project using all the extra stuff i like.
 """
-
+from collections import OrderedDict
 import argparse
 import os
 import shutil
@@ -98,6 +98,15 @@ def _parse_cmdline_args():
     )
 
     parser.add_argument(
+        "-i",
+        "--interactive",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Interactive prompt with a few extra fields to autofill",
+    )
+
+    parser.add_argument(
         "-v",
         "--virtualenv",
         default=False,
@@ -141,7 +150,7 @@ def _locate_templates():
 TEMPLATES = _locate_templates()
 
 
-def _write(proj, outpath):
+def _write(proj, outpath, formatters):
     """
     Get the filename from outpath
     read it from templates dir
@@ -151,7 +160,7 @@ def _write(proj, outpath):
     fname = os.path.basename(outpath)
     template = os.path.join(TEMPLATES, fname)
     with open(template, "r") as fo:
-        formatted = fo.read().format_map(SafeDict(name=proj))
+        formatted = fo.read().format_map(SafeDict(name=proj, **formatters))
     with open(os.path.join(proj, outpath.format(name=proj)), "w") as fo:
         fo.write(formatted.strip() + "\n")
 
@@ -208,11 +217,53 @@ def _build_virtualenv(name):
     print(f"\n* virtualenv created: activate with `source {vfile}`")
 
 
-def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
+def _input_wrap(prompt, default=None):
+    result = input(prompt.format(default=default) + "\n")
+    if result.strip() in {"", "y", "yes"}:
+        return default
+    if result.strip() in {"quit", "q", "exit"}:
+        raise RuntimeError("User quit.")
+    return result.strip()
+
+
+def _interactive(name, **kwargs):
+    """
+    Interactive assistant
+    """
+    prompt = (
+        "This is the interactive helper for *sire*. Details entered here will "
+        "determine which files are included, and format them with the correct "
+        "information. Leaving a field blank is OK, but can result in incompletely "
+        "formatted files. Hit enter to begin, or type 'quit' to quit."
+    )
+    _input_wrap(prompt)
+    output = dict()
+
+    prompts = OrderedDict(
+        description=("One-line project description:", None),
+        real_name=("Real name:", None),
+        username=("Username:", None),
+        email=("Email:", None),
+        github_username=("GitHub username: ({default})", "USERNAME?"),
+        license=("Licence to use: ({default})", "MIT"),
+        mkdocs=("Use mkdocs/readthedocs for documentation: ({default})", False),
+        virtualenv=("Generate a virtualenv for this project: ({default})", False),
+        git=("Initialise as a git repo: ({default})", False),
+    )
+
+    for field, (prompt, default) in prompts.items():
+        output[field] = _input_wrap(prompt, default)
+    return output
+
+
+def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive=False):
     """
     Generate a new Python 3.7 project, optionally with .git, virtualenv and
     mkthedocs basics present too.
     """
+    kwargs = dict(mkdocs=mkdocs, virtualenv=virtualenv, git=git, exclude=exclude)
+    formatters = dict() if not interactive else _interactive(name, **kwargs)
+
     # print abspath because user might want it for copying...
     dirname = os.path.abspath(f"./{name}")
     print(f"\nGenerating new project at `{dirname}`...")
@@ -237,7 +288,7 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
 
     # format and copy over the paths
     for path in paths:
-        _write(name, path)
+        _write(name, path, formatters)
 
     # make publish executable
     st = os.stat(f"{name}/publish.sh")

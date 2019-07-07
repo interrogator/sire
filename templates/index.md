@@ -1,4 +1,6 @@
-`{name}` is a library for
+`{name}`
+
+{description}
 
 ## Contents
 
