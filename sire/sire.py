@@ -75,7 +75,6 @@ def _parse_cmdline_args():
     Command line argument parsing. Doing it here means less duplication than
     would be the case in bin/
     """
-
     parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
     extra = [os.path.basename(os.path.splitext(i)[0]).strip(".").lower() for i in PATHS]
     paths = "/".join(sorted(extra))
@@ -149,6 +148,7 @@ def _locate_templates():
     raise ValueError(f"No templates found in: {dirs}")
 
 
+# directory containing our templates
 TEMPLATES = _locate_templates()
 
 
@@ -156,7 +156,7 @@ def _write(proj, outpath, formatters):
     """
     Get the filename from outpath
     read it from templates dir
-    add project name to anywhere {name} appears in doc
+    format any variables in the templates with projname/other formatters
     write to outpath
     """
     fname = os.path.basename(outpath)
@@ -170,6 +170,7 @@ def _write(proj, outpath, formatters):
 def _make_todos(name, paths, mkdocs, git, github_username):
     """
     Make a formatted str of things to do from here. Mostly so the user can copy
+    urls and so on (to quickly set up hooks, git remote)
     """
     todos = [f"Actually write some tests: {name}/tests.py"]
     if ".coveragerc" in paths:
@@ -191,7 +192,6 @@ def _filter_excluded(exclude):
     if not exclude:
         return PATHS
 
-    # return a subset of PATHS based on exclude
     filtered = set()
     for path in PATHS:
         # remove path and extension from
@@ -220,6 +220,10 @@ def _build_virtualenv(name):
 
 
 def _input_wrap(prompt, default=None):
+    """
+    Run input() with formatted prompt, and return
+    The while loop can be used to ensure correct output
+    """
     understood = False
     while not understood:
         result = input(prompt.format(default=default)).lower().strip()
@@ -233,12 +237,13 @@ def _input_wrap(prompt, default=None):
             raise RuntimeError("User quit.")
         if not isinstance(default, bool):
             return result
-        print("Error: answer not understood")
+        print("Error: answer not understood. You can 'quit' or hit ctrl+c to exit.")
 
 
-def _interactive(name, **kwargs):
+def _interactive(name):
     """
-    Interactive assistant
+    Interactive assistant. This will supercede any command line arguments, meaning
+    that it is pointless to add any other arguments when using the -i argument.
     """
     prompt = (
         "\n========================================================================\n"
@@ -250,7 +255,7 @@ def _interactive(name, **kwargs):
     )
     _input_wrap(prompt)
     output = dict()
-
+    # attempt to get some variables from shell. not sure how this looks when absent
     usr = getpass.getuser()
     email = "git config user.email".split()
     email = subprocess.check_output(email).decode("utf-8").strip()
@@ -258,20 +263,21 @@ def _interactive(name, **kwargs):
     real_name = subprocess.check_output(real_name).decode("utf-8").strip()
     exes = "Comma separated list of files to exclude (e.g. travis/mypy/bumpversion):  "
 
-    prompts = OrderedDict(
-        real_name=("Real name (for license, setup.py) ({default}):  ", real_name),
-        username=("Username ({default}):  ", usr),
-        email=("Email ({default}):  ", email),
-        github_username=("GitHub username ({default}):  ", usr),
-        description=("Short project description:  ", None),
-        # license=("Licence to use: ({default})", "MIT"),
-        mkdocs=("Use mkdocs/readthedocs for documentation (y/N):  ", False),
-        virtualenv=("Generate a virtualenv for this project (y/N):  ", False),
-        git=("Initialise as a git repo (y/N):  ", False),
-        exclude=(exes, set()),
-    )
+    # tuples are field name, prompt text, default
+    prompts = [
+        ("real_name", "Real name (for license, setup.py) ({default}):  ", real_name),
+        ("username", "Username ({default}):  ", usr),
+        ("email", "Email ({default}):  ", email),
+        ("github_username", "GitHub username ({default}):  ", usr),
+        ("description", "Short project description:  ", None),
+        ("# license", "Licence to use: ({default})", "MIT"),
+        ("mkdocs", "Use mkdocs/readthedocs for documentation (y/N):  ", False),
+        ("virtualenv", "Generate a virtualenv for this project (y/N):  ", False),
+        ("git", "Initialise as a git repo (y/N):  ", False),
+        ("exclude", exes, set()),
+    ]
 
-    for field, (prompt, default) in prompts.items():
+    for field, prompt, default in prompts:
         output[field] = _input_wrap(prompt, default)
     return output
 
@@ -281,15 +287,14 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     Generate a new Python 3.7 project, optionally with .git, virtualenv and
     mkthedocs basics present too.
     """
-    kwargs = dict(mkdocs=mkdocs, virtualenv=virtualenv, git=git, exclude=exclude)
-    formatters = dict() if not interactive else _interactive(name, **kwargs)
+    formatters = dict() if not interactive else _interactive(name)
+    # is there a nicer way to do this? user locals? :|
     if interactive:
-        mkdocs, virtualenv, git, exclude = (
-            formatters.pop("mkdocs"),
-            formatters.pop("virtualenv"),
-            formatters.pop("git"),
-            formatters.pop("exclude"),
-        )
+        mkdocs = formatters.pop("mkdocs")
+        formatters.pop("mkdocs")
+        virtualenv = formatters.pop("virtualenv")
+        git = formatters.pop("git")
+        exclude = formatters.pop("exclude")
 
     # print abspath because user might want it for copying...
     dirname = os.path.abspath(f"./{name}")
