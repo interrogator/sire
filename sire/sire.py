@@ -11,6 +11,8 @@ import stat
 import subprocess
 import sys
 
+# here we store the out paths that will be generated. not included are git and
+# mkdocs-related files, as they are added in later if the user requests them
 PATHS = {
     ".bumpversion.cfg",
     ".coveragerc",
@@ -33,11 +35,45 @@ EXCLUDE_TRANSLATIONS = dict(
     codecov="coveragerc",
     coverage="coveragerc",
     bump2version="bumpversion.cfg",
+    rtd="readthedocs.cfg",
+    readthedocs="readthedocs.cfg",
+    venv="virtualenv",
+    docs="readthedocs.cfg",
     test="tests.py",
 )
 
 
+class SafeDict(dict):
+    """
+    Need a custom object to not error when formatting files that contain {str}
+    """
+
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+
+def _clean_kwargs(kwargs):
+    """
+    Turn exclude into a set of normalised strings, and translate
+    exclude=git,virtualenv to git=False, virtualenv=False etc
+    """
+    exclude = kwargs["exclude"]
+    if not exclude:
+        return kwargs
+    exclude = {EXCLUDE_TRANSLATIONS.get(i, i) for i in exclude.split(",")}
+    for special in {"git", "virtualenv", "mkdocs"}:
+        if special in exclude:
+            print(f"* Skipping {special} because it is in the exclude list.")
+            kwargs[special] = False
+    kwargs["exclude"] = exclude
+    return kwargs
+
+
 def _parse_cmdline_args():
+    """
+    Command line argument parsing. Doing it here means less duplication than
+    would be the case in bin/
+    """
 
     parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
     extra = [os.path.basename(os.path.splitext(i)[0]).strip(".").lower() for i in PATHS]
@@ -81,7 +117,9 @@ def _parse_cmdline_args():
 
     parser.add_argument("name", help="Name of the new Python project")
 
-    return vars(parser.parse_args())
+    kwargs = vars(parser.parse_args())
+
+    return _clean_kwargs(kwargs)
 
 
 def _locate_templates():
@@ -103,15 +141,6 @@ def _locate_templates():
 TEMPLATES = _locate_templates()
 
 
-class SafeDict(dict):
-    """
-    Need a custom object to not error when formatting files that contain {var}
-    """
-
-    def __missing__(self, key):
-        return "{" + key + "}"
-
-
 def _write(proj, outpath):
     """
     Get the filename from outpath
@@ -129,40 +158,54 @@ def _write(proj, outpath):
 
 def _make_todos(name, paths, mkdocs, git):
     """
-    Make a formatted list of things to do from here
+    Make a formatted str of things to do from here. Mostly so the user can copy
     """
     todos = [f"Actually write some tests: {name}/tests.py"]
     if ".coveragerc" in paths:
         todos.append("Set up codecov and a git hook for it.")
     if mkdocs:
-        todos.append("Set up a readthedocs and a git hook for it.")
+        rtd = "https://readthedocs.org/dashboard/import"
+        todos.append(f"Set up a readthedocs and a git hook for it: {rtd}")
     if git:
         url = f"git remote set-url origin https://github.com/<user>/{name}"
         todos.append(f"Set git remote: (e.g.) {url}")
     return "\n* ".join(todos)
 
 
-def _filter_excluded(exclude, **kwargs):
+def _filter_excluded(exclude):
     """
-    Remove files the user does not want to generate...
+    Get just the subset of PATH strings that we need to process, based on the
+    contents of exclude, which was already pre-processed during argument parsing
     """
+    if not exclude:
+        return PATHS
+
+    # return a subset of PATHS based on exclude
     filtered = set()
-    trans_exclude = set()
-    exclude = {i.strip().lower().lstrip(".") for i in exclude.split(",")}
-    trans_exclude = {EXCLUDE_TRANSLATIONS.get(i, i) for i in exclude}
-    for name in kwargs:
-        if name in trans_exclude:
-            print(f"* Skipping {name} because it is in the exclude list.")
-            kwargs[name] = False
-    # annoyingly, this could be a one-liner, but for print and so on we can't
     for path in PATHS:
+        # remove path and extension from
         no_pth = os.path.basename(path).lstrip(".")
         no_ext = os.path.splitext(no_pth)[0]
-        if no_pth.lower() in trans_exclude or no_ext.lower() in trans_exclude:
+        possible = {path, no_pth, no_ext}
+        if any(i in exclude for i in possible):
             print(f"* Skipping {path} because it is in the exclude list.")
             continue
         filtered.add(path)
-    return filtered, kwargs["mkdocs"], kwargs["virtualenv"], kwargs["git"]
+    return filtered
+
+
+def _build_virtualenv(name):
+    """
+    If the user wants, make a new virtualenv, install dependencies, and
+    print some helpful copyable strings along the way
+    """
+    print("Making virtualenv and installing dependencies")
+    subprocess.call(f"python3.7 -m venv {name}/venv-{name}".split())
+    pip = os.path.abspath(f"{name}/venv-{name}/bin/pip")
+    subprocess.call(f"{pip} install wheel".split())
+    subprocess.call(f"{pip} install -r {name}/requirements.txt".split())
+    vfile = os.path.join(os.path.dirname(pip), "activate")
+    print(f"\n* virtualenv created: activate with `source {vfile}`")
 
 
 def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
@@ -170,31 +213,27 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
     Generate a new Python 3.7 project, optionally with .git, virtualenv and
     mkthedocs basics present too.
     """
+    # print abspath because user might want it for copying...
     dirname = os.path.abspath(f"./{name}")
     print(f"\nGenerating new project at `{dirname}`...")
-    # remove things specific in includes
-    # also, if the user does exclude=mkdocs/virtualenv, flag these
-    if exclude:
-        extra = dict(mkdocs=mkdocs, virtualenv=virtualenv, git=git)
-        paths, mkdocs, virtualenv, git = _filter_excluded(exclude, **extra)
-    else:
-        paths = PATHS
+
+    # make module and test dirs. i'm not making it possible to avoid tests!
+    os.makedirs(os.path.join(name, name))
+    os.makedirs(os.path.join(name, "tests"))
+
+    # get set of paths minus what is in exclude
+    paths = _filter_excluded(exclude)
 
     # add git extras if the user wants
     if git:
         subprocess.call(f"git init {name}".split())
         paths.update({".gitignore", ".pre-commit-config.yaml"})
 
-    # make module and test dirs
-    os.makedirs(os.path.join(name, name))
-    os.makedirs(os.path.join(name, "tests"))
-
     # mkdocs extras
     if mkdocs:
+        files = {"mkdocs.yml", "docs/index.md", "docs/about.md", ".readthedocs.yaml"}
         os.makedirs(os.path.join(name, "docs"))
-        paths.update(
-            {"mkdocs.yml", "docs/index.md", "docs/about.md", ".readthedocs.yaml"}
-        )
+        paths.update(files)
 
     # format and copy over the paths
     for path in paths:
@@ -204,22 +243,15 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None):
     st = os.stat(f"{name}/publish.sh")
     os.chmod(f"{name}/publish.sh", st.st_mode | stat.S_IEXEC)
 
-    # virtualenv stuff
     if virtualenv:
-        print("Making virtualenv and installing dependencies")
-        subprocess.call(f"python3.7 -m venv {name}/venv-{name}".split())
-        pip = os.path.abspath(f"{name}/venv-{name}/bin/pip")
-        subprocess.call(f"{pip} install wheel".split())
-        subprocess.call(f"{pip} install -r {name}/requirements.txt".split())
-        vfile = os.path.join(os.path.dirname(pip), "activate")
-        print(f"\n* virtualenv created: activate with `source {vfile}`")
+        _build_virtualenv(name)
 
     todos = _make_todos(name, paths, mkdocs, git)
 
-    print(
-        f"\nAll done! `cd {name}` to check out your new project."
-        f"\n\nTo do:\n\n* {todos}\n"
-    )
+    final = f"\nAll done! `cd {name}` to check out your new project."
+    if todos:
+        final += f"\n\nTo do:\n\n* {todos}\n"
+    print(final)
 
 
 def wrapped_sire(**kwargs):
