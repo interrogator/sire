@@ -270,7 +270,7 @@ def _interactive(name):
         ("email", "Email ({default}):  ", email),
         ("github_username", "GitHub username ({default}):  ", usr),
         ("description", "Short project description:  ", None),
-        ("# license", "Licence to use: ({default})", "MIT"),
+        # ("license", "Licence to use ({default}):  ", "MIT"),
         ("mkdocs", "Use mkdocs/readthedocs for documentation (y/N):  ", False),
         ("virtualenv", "Generate a virtualenv for this project (y/N):  ", False),
         ("git", "Initialise as a git repo (y/N):  ", False),
@@ -291,7 +291,6 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     # is there a nicer way to do this? user locals? :|
     if interactive:
         mkdocs = formatters.pop("mkdocs")
-        formatters.pop("mkdocs")
         virtualenv = formatters.pop("virtualenv")
         git = formatters.pop("git")
         exclude = formatters.pop("exclude")
