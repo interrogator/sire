@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import re
+import requests
 
 # here we store the out paths that will be generated. not included are git and
 # mkdocs-related files, as they are added in later if the user requests them
@@ -148,20 +149,27 @@ def _locate_templates():
     raise ValueError(f"No templates found in: {dirs}")
 
 
-def _obtain_github_username():
+def _obtain_github_username(name):
     """
     if the user under which this script runs has enabled ssh
     access to github with their pubkey this will retrieve
-    their github username.
+    their github username. if ssh does not work out see if
+    a project with the username/name already exists on github.
+    if it does assume that is the correct username.
     """
     command = 'ssh -o "StrictHostKeyChecking=no" -T git@github.com'
-    find_name_regex = r'Hi ([a-zA-Z\d]{2,40})\!'
+    find_name_regex = r"Hi ([a-zA-Z\d]{2,40})\!"
 
-    result = subprocess.run(command, shell=True, stderr=subprocess.PIPE, universal_newlines=True)
+    result = subprocess.run(
+        command, shell=True, stderr=subprocess.PIPE, universal_newlines=True
+    )
     match = re.search(find_name_regex, result.stderr)
     if match:
         return match.group(1)
-    return False # or maybe return getpass.getuser()
+    url = f"http://github.com/{getpass.getuser()}/{name}"
+    if requests.get(url).ok:
+        return getpass.getuser()
+    return False
 
 
 # directory containing our templates
@@ -330,7 +338,7 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     if git:
         subprocess.call(f"git init {name}".split())
         paths.update({".gitignore", ".pre-commit-config.yaml"})
-        formatters['github_username'] = _obtain_github_username()
+        formatters["github_username"] = _obtain_github_username()
 
     # mkdocs extras
     if mkdocs:
