@@ -29,6 +29,10 @@ PATHS = {
     "{name}/__init__.py",
 }
 
+SHORT_PATHS = [
+    os.path.basename(os.path.splitext(i)[0]).strip(".").lower() for i in PATHS
+]
+
 # the below just helps with interpreting exclude patterns, so that 'codecov'
 # will remove .coveragerc, and so on
 EXCLUDE_TRANSLATIONS = dict(
@@ -75,8 +79,7 @@ def _parse_cmdline_args():
     would be the case in bin/
     """
     parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
-    extra = [os.path.basename(os.path.splitext(i)[0]).strip(".").lower() for i in PATHS]
-    paths = "/".join(sorted(extra))
+    paths = "/".join(sorted(SHORT_PATHS))
 
     parser.add_argument(
         "-e",
@@ -223,8 +226,7 @@ def _input_wrap(prompt, default=None):
     Run input() with formatted prompt, and return
     The while loop can be used to ensure correct output
     """
-    understood = False
-    while not understood:
+    while True:  # while input not understood
         result = input(prompt.format(default=default)).lower().strip()
         if result in {"y", "yes"}:
             return True
@@ -260,7 +262,8 @@ def _interactive(name):
     email = subprocess.check_output(email).decode("utf-8").strip()
     real_name = "git config user.name".split()
     real_name = subprocess.check_output(real_name).decode("utf-8").strip()
-    exes = "Comma separated list of files to exclude (e.g. travis/mypy/bumpversion):  "
+    short = "/".join(sorted(SHORT_PATHS))
+    exes = f"Comma separated list of files to exclude\n(e.g. {short}):  "
 
     # tuples are field name, prompt text, default
     prompts = [
