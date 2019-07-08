@@ -300,6 +300,8 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
 
     # make module and test dirs. i'm not making it possible to avoid tests!
     os.makedirs(os.path.join(name, name))
+    with open(os.path.join(name, name, name + ".py"), "w") as fo:
+        fo.write("\n")
     os.makedirs(os.path.join(name, "tests"))
 
     # get set of paths minus what is in exclude

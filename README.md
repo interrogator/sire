@@ -20,8 +20,45 @@ git clone https://github.com/interrogator/sire && cd sire && python.setup.py ins
 
 ## Usage
 
+Use the `-m`, `-v` and `-g` flags to configure *mkdocs*, *virtualenv* and *git*.
+
+The `-e` flag takes a comma-separated list of items to exclude.
+
 ```bash
-sire --mkdocs --virtualenv --git --exclude=mypy <project_name>
+sire --mkdocs --virtualenv --git --exclude=mypy,LICENSE <project_name>
+```
+
+Result of `sire -v -g -m demo`:
+
+```
+demo
+├── demo
+│   ├── demo.py
+│   └── __init__.py
+├── docs
+│   ├── about.md
+│   └── index.md
+├── .git
+│   └── <the usual .git contents>
+├── tests
+│   └── tests.py
+├── venv-demo
+│   └── <the usual venv convents>
+├── .bumpversion.cfg
+├── CHANGELOG.md
+├── .coveragerc
+├── .flake8
+├── .gitignore
+├── LICENSE
+├── mkdocs.yml
+├── mypy.ini
+├── .pre-commit-config.yaml
+├── publish.sh
+├── README.md
+├── .readthedocs.yaml
+├── requirements.txt
+├── setup.py
+└── .travis.yml
 ```
 
 ## Alternative usages (not recommended)
@@ -36,45 +73,7 @@ Or from inside Python (why?):
 
 ```python
 from sire import sire
-sire('project_name', mkdocs=True, virtualenv=True, git=True)
-```
-
-### What gets generated
-
-Pure Python:
-
-* `<project_name>/<project_name>.py`
-* `<project_name>/__init__.py`
-* `setup.py`
-* `requirements.txt` (with *black*, *isort*, *flake8* etc)
-* `tests/tests.py`
-
-Optional extras:
-
-* mkdocs (`.readthedocs.yaml`, `./docs`, `.mkdocs.yml`)
-* irtualenv (with dependencies installed)
-* git (`.git`, `.gitignore`, `.pre-commit-config.yaml`)
-
-Each of these has an associated flag:
-
-```bash
-sire -v/--virtualenv -m/--mkdocs -g/--git projname
-```
-
-Other files
-
-* `.coveragerc`
-* `.travis.yml`
-* `publish.sh` (a script for running tests and authoring a new version)
-* `mypy.ini`
-* MIT License
-* Empty `CHANGELOG`
-* `.bumpversion.cfg`
-
-If you want to skip any of these files, use the `--exclude` option with comma separation:
-
-```bash
-sire --exclude=travis,setup.py,mypy projname
+sire('project_name', mkdocs=True, virtualenv=True, git=True, exclude={'mypy'})
 ```
 
 ## Trivia
