@@ -10,4 +10,4 @@ $ sire --mkdocs=true/false --virtualenv=true/false junglebook
 
 from sire.sire import wrapped_sire, _parse_cmdline_args
 
-wrapped_sire(**_parse_cmdline_args())
+wrapped_sire(*_parse_cmdline_args())

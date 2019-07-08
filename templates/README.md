@@ -14,7 +14,7 @@
 
 ```bash
 pip install {name}
-#or
+# or
 git clone https://github.com/{github_username}/{name} && cd {name} && python.setup.py install
 ```
 

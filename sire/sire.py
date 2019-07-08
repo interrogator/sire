@@ -11,6 +11,8 @@ import stat
 import subprocess
 import sys
 
+from .string_matches import BADLINES
+
 # here we store the out paths that will be generated. not included are git and
 # mkdocs-related files, as they are added in later if the user requests them
 PATHS = {
@@ -28,6 +30,10 @@ PATHS = {
     "tests/tests.py",
     "{name}/__init__.py",
 }
+
+# translate between user input for exclude and the pip name, so we can remove
+# unused things from requirements
+MODULE_TRANSLATION = {"codecoverage": "codecov", "bumpversion.cfg": "bump2version"}
 
 SHORT_PATHS = [
     os.path.basename(os.path.splitext(i)[0]).strip(".").lower() for i in PATHS
@@ -58,19 +64,15 @@ class SafeDict(dict):
 
 def _clean_kwargs(kwargs):
     """
-    Turn exclude into a set of normalised strings, and translate
-    exclude=git,virtualenv to git=False, virtualenv=False etc
+    Add mkdocs, virtualenv and git to exclude set
     """
-    exclude = kwargs["exclude"]
-    if not exclude:
-        return kwargs
+    exclude = kwargs["exclude"] or str()
     exclude = {EXCLUDE_TRANSLATIONS.get(i, i) for i in exclude.split(",")}
     for special in {"git", "virtualenv", "mkdocs"}:
-        if special in exclude:
+        if not kwargs[special]:
             print(f"* Skipping {special} because it is in the exclude list.")
-            kwargs[special] = False
-    kwargs["exclude"] = exclude
-    return kwargs
+            exclude.add(special)
+    return kwargs["project_name"], kwargs["interactive"], exclude
 
 
 def _parse_cmdline_args():
@@ -129,7 +131,6 @@ def _parse_cmdline_args():
     parser.add_argument("project_name", help="Name of the new Python project")
 
     kwargs = vars(parser.parse_args())
-    kwargs["name"] = kwargs.pop("project_name")
 
     return _clean_kwargs(kwargs)
 
@@ -154,7 +155,23 @@ def _locate_templates():
 TEMPLATES = _locate_templates()
 
 
-def _write(proj, outpath, formatters):
+def _remove_excluded_lines(formatted, exclude):
+    """
+    If something is excluded, we don't need it in the readme. Problem is, this
+    is a hard thing to automate. So, we just add lots of strings in BADLINES
+    """
+    out = []
+    for line in formatted.splitlines():
+        for ex in exclude:
+            badlines = BADLINES.get(ex, list())
+            if any(line.startswith(i) for i in badlines):
+                break
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
+def _write(proj, outpath, formatters, exclude):
     """
     Get the filename from outpath
     read it from templates dir
@@ -165,11 +182,17 @@ def _write(proj, outpath, formatters):
     template = os.path.join(TEMPLATES, fname)
     with open(template, "r") as fo:
         formatted = fo.read().format_map(SafeDict(name=proj, **formatters))
+        # hack in some handling of requirements file
+        if "requirements" in template:
+            deps = {MODULE_TRANSLATION.get(i, i) for i in exclude}
+            formatted = "\n".join(i for i in formatted.splitlines() if i not in deps)
+        # remove bad lines?
+        formatted = _remove_excluded_lines(formatted, exclude)
     with open(os.path.join(proj, outpath.format(name=proj)), "w") as fo:
         fo.write(formatted.strip() + "\n")
 
 
-def _make_todos(name, paths, mkdocs, git, github_username):
+def _make_todos(name, paths, exclude, formatters):
     """
     Make a formatted str of things to do from here. Mostly so the user can copy
     urls and so on (to quickly set up hooks, git remote)
@@ -177,10 +200,11 @@ def _make_todos(name, paths, mkdocs, git, github_username):
     todos = [f"Actually write some tests: {name}/tests.py"]
     if ".coveragerc" in paths:
         todos.append("Set up codecov and a git hook for it.")
-    if mkdocs:
+    if "mkdocs" not in exclude:
         rtd = "https://readthedocs.org/dashboard/import"
         todos.append(f"Set up a readthedocs and a git hook for it: {rtd}")
-    if git:
+    if "git" not in exclude:
+        github_username = formatters.get("github_username", "<username>")
         url = f"git remote set-url origin https://github.com/{github_username}/{name}"
         todos.append(f"Set git remote: (e.g.) {url}")
     return "\n* ".join(todos)
@@ -284,18 +308,12 @@ def _interactive(name):
     return output
 
 
-def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive=False):
+def sire(name, interactive=False, exclude=None):
     """
     Generate a new Python 3.7 project, optionally with .git, virtualenv and
     mkthedocs basics present too.
     """
     formatters = dict() if not interactive else _interactive(name)
-    # is there a nicer way to do this? user locals? :|
-    if interactive:
-        mkdocs = formatters.pop("mkdocs")
-        virtualenv = formatters.pop("virtualenv")
-        git = formatters.pop("git")
-        exclude = formatters.pop("exclude")
 
     # print abspath because user might want it for copying...
     dirname = os.path.abspath(f"./{name}")
@@ -313,29 +331,28 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     paths = _filter_excluded(exclude)
 
     # add git extras if the user wants
-    if git:
+    if "git" not in exclude:
         subprocess.call(f"git init {name}".split())
         paths.update({".gitignore", ".pre-commit-config.yaml"})
 
     # mkdocs extras
-    if mkdocs:
+    if "mkdocs" not in exclude:
         files = {"mkdocs.yml", "docs/index.md", "docs/about.md", ".readthedocs.yaml"}
         os.makedirs(os.path.join(name, "docs"))
         paths.update(files)
 
     # format and copy over the paths
     for path in paths:
-        _write(name, path, formatters)
+        _write(name, path, formatters, exclude)
 
     # make publish executable
     st = os.stat(f"{name}/publish.sh")
     os.chmod(f"{name}/publish.sh", st.st_mode | stat.S_IEXEC)
 
-    if virtualenv:
+    if "virtualenv" not in exclude:
         _build_virtualenv(name)
 
-    gh_username = formatters.get("github_username", "<username>")
-    todos = _make_todos(name, paths, mkdocs, git, gh_username)
+    todos = _make_todos(name, paths, exclude, formatters)
 
     final = f"\nAll done! `cd {name}` to check out your new project."
     if todos:
@@ -343,20 +360,20 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     print(final)
 
 
-def wrapped_sire(**kwargs):
+def wrapped_sire(*args):
     """
     Make sure that the directory is deleted if there is an error during sire
     """
     try:
-        sire(**kwargs)
+        sire(*args)
     except KeyboardInterrupt:
         print("Process stopped by user. Aborting and cleaning up ...")
-        shutil.rmtree(kwargs["name"], ignore_errors=True)
+        shutil.rmtree(args[0], ignore_errors=True)
     except Exception:
         print("Error during project creation. Aborting and cleaning up ...")
-        shutil.rmtree(kwargs["name"], ignore_errors=True)
+        shutil.rmtree(args[0], ignore_errors=True)
         raise
 
 
 if __name__ == "__main__":
-    wrapped_sire(**_parse_cmdline_args())
+    wrapped_sire(*_parse_cmdline_args())
