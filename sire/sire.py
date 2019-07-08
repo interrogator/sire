@@ -152,7 +152,7 @@ def _obtain_github_username():
     """
     if the user under which this script runs has enabled ssh
     access to github with their pubkey this will retrieve
-    their github username
+    their github username.
     """
     command = 'ssh -o "StrictHostKeyChecking=no" -T git@github.com'
     find_name_regex = r'Hi ([a-zA-Z\d]{2,40})\!'
@@ -161,7 +161,7 @@ def _obtain_github_username():
     match = re.search(find_name_regex, result.stderr)
     if match:
         return match.group(1)
-    return False
+    return False # or maybe return getpass.getuser()
 
 
 # directory containing our templates
@@ -272,7 +272,7 @@ def _interactive(name):
     _input_wrap(prompt)
     output = dict()
     # attempt to get some variables from shell. not sure how this looks when absent
-    usr = getpass.getuser()
+    usr = _obtain_github_username()
     email = "git config user.email".split()
     email = subprocess.check_output(email).decode("utf-8").strip()
     real_name = "git config user.name".split()
@@ -330,12 +330,7 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     if git:
         subprocess.call(f"git init {name}".split())
         paths.update({".gitignore", ".pre-commit-config.yaml"})
-        github_username = _obtain_github_username()
-        if github_username:
-            url = f"git remote set-url origin https://github.com/{github_username}/{name}"
-            # print the command or execute it?
-            print(url)
-            # subprocess.call(url)
+        formatters['github_username'] = _obtain_github_username()
 
     # mkdocs extras
     if mkdocs:
