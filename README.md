@@ -62,19 +62,11 @@ demo
 └── .travis.yml
 ```
 
-## Alternative usages (not recommended)
-
-As Python module:
-
-```bash
-python -m sire.sire mkdocs virtualenv <project_name>
-```
-
-Or from inside Python (why?):
+You can also run *sire* from within Python, though there's really no compelling reason to do so. Note that here you pass all excludes with the `exclude` argument, including *git*, *mkdocs* and *virtualenv*.
 
 ```python
 from sire import sire
-sire('project_name', mkdocs=True, virtualenv=True, git=True, exclude={'mypy'})
+sire('project_name', exclude={'mypy', 'git'}, interactive=False)
 ```
 
 ## Trivia

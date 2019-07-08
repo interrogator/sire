@@ -10,7 +10,6 @@ for example in the travis cd.
 Keys are the possibly excluded things. Values are a list of strings, starting at
 the start of the line, to match and remove.
 """
-
 BADLINES = dict(
     readme=[
         '    long_description=read("README.md"),',
@@ -25,10 +24,17 @@ BADLINES = dict(
         r'search = __version__ = "{current_version}"',
         r'replace = __version__ = "{new_version}"',
     ],
-    flake8=["        - flake8"],
-    isort=["        - isort -m 3 -tc -c"],
+    flake8=["        - flake8", "flake8 "],
+    isort=["        - isort -m 3 -tc -c", "isort -m 3 -tc"],
     mypy=["        - mypy "],
-    git=["# or", "git clone https", '    url="http://'],
+    virtualenv=["proj=$", 'source "venv-', "# use virtualenv"],
+    git=[
+        "# or",
+        "git clone https",
+        '    url="http://',
+        "git push origin master",
+        "# push to ",
+    ],
     codecoverage=[
         "[![codecov.io](https",
         "        - coverage run -m unittest",
@@ -37,10 +43,11 @@ BADLINES = dict(
         "      script:  # coverage",
     ],
     travis=["[![Build Status](https"],
-    black=["[![Code style: black]", "        - black --check"],
+    black=["[![Code style: black]", "        - black --check", "black "],
     setup=[
         "[bumpversion:file:setup.py]",
         r'search = version="{current_version}"',
         r'replace = version="{new_version}"',
     ],
+    bumpversion=["bump2version $1", "# bump the version"],
 )

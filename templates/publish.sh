@@ -4,7 +4,7 @@
 set -e
 echo "Doing $1 update"
 
-# use python 3.7 virtualenv
+# use virtualenv
 proj=${PWD##*/}
 source "venv-$proj/bin/activate"
 
@@ -28,5 +28,5 @@ python setup.py bdist_egg sdist
 # upload
 twine upload dist/*
 
-# push to github
+# push to git
 git push origin master --follow-tags 

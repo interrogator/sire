@@ -35,6 +35,7 @@ PATHS = {
 # unused things from requirements
 MODULE_TRANSLATION = {"codecoverage": "codecov", "bumpversion.cfg": "bump2version"}
 
+# we use these to format help for the user
 SHORT_PATHS = [
     os.path.basename(os.path.splitext(i)[0]).strip(".").lower() for i in PATHS
 ]
@@ -44,12 +45,12 @@ SHORT_PATHS = [
 EXCLUDE_TRANSLATIONS = dict(
     codecov="coveragerc",
     coverage="coveragerc",
-    bump2version="bumpversion.cfg",
-    rtd="readthedocs.cfg",
-    readthedocs="readthedocs.cfg",
+    bump2version="bumpversion",
+    rtd="readthedocs",
+    readthedocs="readthedocs",
     venv="virtualenv",
-    docs="readthedocs.cfg",
-    test="tests.py",
+    docs="readthedocs",
+    test="tests",
 )
 
 
@@ -138,6 +139,8 @@ def _parse_cmdline_args():
 def _locate_templates():
     """
     templates dir seems to move around depending on how you install!?
+
+    todo: remove some of these if they are not possible. right now i don't know.
     """
     fpath = os.path.dirname(__file__)
     first = os.path.dirname(fpath)
@@ -322,10 +325,10 @@ def sire(name, interactive=False, exclude=None):
     # make module and test dirs. i'm not making it possible to avoid tests!
     os.makedirs(os.path.join(name, name))
     with open(os.path.join(name, name, name + ".py"), "w") as fo:
-        fo.write("\n")
+        fo.write("")
     os.makedirs(os.path.join(name, "tests"))
     with open(os.path.join(name, "tests", "__init__.py"), "w") as fo:
-        fo.write("\n")
+        fo.write("")
 
     # get set of paths minus what is in exclude
     paths = _filter_excluded(exclude)
