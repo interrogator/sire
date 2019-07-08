@@ -280,7 +280,7 @@ def _interactive(name):
     _input_wrap(prompt)
     output = dict()
     # attempt to get some variables from shell. not sure how this looks when absent
-    usr = _obtain_github_username()
+    usr = _obtain_github_username(name)
     email = "git config user.email".split()
     email = subprocess.check_output(email).decode("utf-8").strip()
     real_name = "git config user.name".split()
@@ -338,7 +338,7 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     if git:
         subprocess.call(f"git init {name}".split())
         paths.update({".gitignore", ".pre-commit-config.yaml"})
-        formatters["github_username"] = _obtain_github_username()
+        formatters["github_username"] = _obtain_github_username(name)
 
     # mkdocs extras
     if mkdocs:
