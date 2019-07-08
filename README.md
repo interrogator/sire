@@ -44,7 +44,7 @@ demo
 │   ├── tests.py
 │   └── __init__.py
 ├── venv-demo
-│   └── <the usual venv convents>
+│   └── <the usual venv contents>
 ├── .bumpversion.cfg
 ├── CHANGELOG.md
 ├── .coveragerc
@@ -83,7 +83,7 @@ sire('project_name', mkdocs=True, virtualenv=True, git=True, exclude={'mypy'})
 
 ## Contributing
 
-I don't really expect many other people to want this, because it's mostly tailored to my specific ideas about how a Pthon project should look. That said, if you do find this projet useful, you are more than welcome to submit pull/feature requests!
+I don't really expect many other people to want this, because it's mostly tailored to my specific ideas about how a Python project should look. That said, if you do find this project useful, you are more than welcome to submit pull/feature requests!
 
 There are dozens of possible new features that could be added, which I'd personally quite like:
 
