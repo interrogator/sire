@@ -10,6 +10,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import re
 
 # here we store the out paths that will be generated. not included are git and
 # mkdocs-related files, as they are added in later if the user requests them
@@ -145,6 +146,22 @@ def _locate_templates():
         if os.path.isdir(os.path.join(path, "templates")):
             return os.path.join(path, "templates")
     raise ValueError(f"No templates found in: {dirs}")
+
+
+def _obtain_github_username():
+    """
+    if the user under which this script runs has enabled ssh
+    access to github with their pubkey this will retrieve
+    their github username
+    """
+    command = 'ssh -o "StrictHostKeyChecking=no" -T git@github.com'
+    find_name_regex = r'Hi ([a-zA-Z\d]{2,40})\!'
+
+    result = subprocess.run(command, shell=True, stderr=subprocess.PIPE, universal_newlines=True)
+    match = re.search(find_name_regex, result.stderr)
+    if match:
+        return match.group(1)
+    return False
 
 
 # directory containing our templates
@@ -313,6 +330,12 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     if git:
         subprocess.call(f"git init {name}".split())
         paths.update({".gitignore", ".pre-commit-config.yaml"})
+        github_username = _obtain_github_username()
+        if github_username:
+            url = f"git remote set-url origin https://github.com/{github_username}/{name}"
+            # print the command or execute it?
+            print(url)
+            # subprocess.call(url)
 
     # mkdocs extras
     if mkdocs:
