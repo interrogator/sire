@@ -41,7 +41,8 @@ demo
 ├── .git
 │   └── <the usual .git contents>
 ├── tests
-│   └── tests.py
+│   ├── tests.py
+│   └── __init__.py
 ├── venv-demo
 │   └── <the usual venv convents>
 ├── .bumpversion.cfg

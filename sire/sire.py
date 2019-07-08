@@ -303,6 +303,8 @@ def sire(name, mkdocs=True, virtualenv=True, git=True, exclude=None, interactive
     with open(os.path.join(name, name, name + ".py"), "w") as fo:
         fo.write("\n")
     os.makedirs(os.path.join(name, "tests"))
+    with open(os.path.join(name, "tests", "__init__.py"), "w") as fo:
+        fo.write("\n")
 
     # get set of paths minus what is in exclude
     paths = _filter_excluded(exclude)
