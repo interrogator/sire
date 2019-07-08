@@ -63,7 +63,7 @@ class SafeDict(dict):
         return "{" + key + "}"
 
 
-def _clean_kwargs(kwargs):
+def _kwargs_to_clean_args(kwargs):
     """
     Add mkdocs, virtualenv and git to exclude set
     """
@@ -80,6 +80,8 @@ def _parse_cmdline_args():
     """
     Command line argument parsing. Doing it here means less duplication than
     would be the case in bin/
+
+    Returns a tuple of project_name (str), interactive (bool) and exclude (set)
     """
     parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
     paths = "/".join(sorted(SHORT_PATHS))
@@ -133,7 +135,7 @@ def _parse_cmdline_args():
 
     kwargs = vars(parser.parse_args())
 
-    return _clean_kwargs(kwargs)
+    return _kwargs_to_clean_args(kwargs)
 
 
 def _locate_templates():
@@ -352,9 +354,11 @@ def sire(name, interactive=False, exclude=None):
     st = os.stat(f"{name}/publish.sh")
     os.chmod(f"{name}/publish.sh", st.st_mode | stat.S_IEXEC)
 
+    # virtualenv creation and requirements install
     if "virtualenv" not in exclude:
         _build_virtualenv(name)
 
+    # create our string of todo notes based on excludes
     todos = _make_todos(name, paths, exclude, formatters)
 
     final = f"\nAll done! `cd {name}` to check out your new project."
