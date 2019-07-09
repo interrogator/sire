@@ -6,11 +6,12 @@ sire: create a new python3.7 project using all the extra stuff i like.
 import argparse
 import getpass
 import os
+import re
 import shutil
 import stat
 import subprocess
 import sys
-import re
+
 import requests
 
 from .string_matches import BADLINES
