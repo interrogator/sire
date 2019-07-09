@@ -16,6 +16,12 @@ import requests
 
 from .string_matches import BADLINES
 
+GIT_URLS = dict(
+    github="https://github.com/{git_username}/{name}",
+    bitbucket="https://bitbucket.org/{git_username}/{name}",
+    gitlab="https://gitlab.com/{git_username}/{name}",
+)
+
 # here we store the out paths that will be generated. not included are git and
 # mkdocs-related files, as they are added in later if the user requests them
 PATHS = {
@@ -76,7 +82,7 @@ def _kwargs_to_clean_args(kwargs):
         if not kwargs[special]:
             print(f"* Skipping {special} because it is in the exclude list.")
             exclude.add(special)
-    return kwargs["project_name"], kwargs["interactive"], exclude
+    return kwargs["project_name"], kwargs["git"], kwargs["interactive"], exclude
 
 
 def _parse_cmdline_args():
@@ -84,7 +90,7 @@ def _parse_cmdline_args():
     Command line argument parsing. Doing it here means less duplication than
     would be the case in bin/
 
-    Returns a tuple of project_name (str), interactive (bool) and exclude (set)
+    Returns a tuple of project_name (str), git (str), interactive (bool) and exclude (set)
     """
     parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
     paths = "/".join(sorted(SHORT_PATHS))
@@ -128,10 +134,11 @@ def _parse_cmdline_args():
     parser.add_argument(
         "-g",
         "--git",
-        default=False,
-        action="store_true",
+        nargs="?",
+        type=str,
         required=False,
-        help="Generate .git, .gitignore and hook(s)",
+        choices=["github", "gitlab", "bitbucket"],
+        help="Generate .git, .gitignore and hook(s). 'github/bitbucket/gitlab...'",
     )
 
     parser.add_argument("project_name", help="Name of the new Python project")
@@ -159,24 +166,25 @@ def _locate_templates():
     raise ValueError(f"No templates found in: {dirs}")
 
 
-def _obtain_github_username(name):
+def _obtain_git_username(git, name):
     """
-    if the user under which this script runs has enabled ssh
-    access to github with their pubkey this will retrieve
-    their github username. if ssh does not work out see if
-    a project with the username/name already exists on github.
-    if it does assume that is the correct username.
+    try to figure out the username for a given git remote and project name.
     """
-    command = 'ssh -o "StrictHostKeyChecking=no" -T git@github.com'
-    find_name_regex = r"Hi ([a-zA-Z\d]{2,40})\!"
+    if git in {"github", "gitlab", "bitbucket"}:
+        command = 'ssh -o "StrictHostKeyChecking=no" -T git@github.com'
+        namefind = r"(?:Hi |logged in as |Welcome to GitLab, @)([a-zA-Z\d]{2,40})"
+    else:
+        raise NotImplementedError(f"Git host {git} not implemented yet. Make an issue?")
 
-    result = subprocess.run(
-        command, shell=True, stderr=subprocess.PIPE, universal_newlines=True
-    )
-    match = re.search(find_name_regex, result.stderr)
+    # first try: see if we can get a good response from our host
+    request_params = dict(shell=True, stderr=subprocess.PIPE, universal_newlines=True)
+    result = subprocess.run(command, **request_params)
+    match = re.search(namefind, result.stderr)
     if match:
         return match.group(1)
-    url = f"http://github.com/{getpass.getuser()}/{name}"
+    # otherwise, see if our computer's username exists on the remote...imperfect
+    guess = getpass.getuser()
+    url = GIT_URLS[git].format(git_username=guess, name=name)
     if requests.get(url).ok:
         return getpass.getuser()
     return False
@@ -191,7 +199,7 @@ def _remove_excluded_lines(formatted, exclude):
     If something is excluded, we don't need it in the readme. Problem is, this
     is a hard thing to automate. So, we just add lots of strings in BADLINES
     """
-    out = []
+    out = list()
     for line in formatted.splitlines():
         for ex in exclude:
             badlines = BADLINES.get(ex, list())
@@ -223,7 +231,7 @@ def _write(proj, outpath, formatters, exclude):
         fo.write(formatted.strip() + "\n")
 
 
-def _make_todos(name, paths, exclude, formatters):
+def _show_todos(name, paths, exclude, formatters, git):
     """
     Make a formatted str of things to do from here. Mostly so the user can copy
     urls and so on (to quickly set up hooks, git remote)
@@ -235,10 +243,21 @@ def _make_todos(name, paths, exclude, formatters):
         rtd = "https://readthedocs.org/dashboard/import"
         todos.append(f"Set up a readthedocs and a git hook for it: {rtd}")
     if "git" not in exclude:
-        github_username = formatters.get("github_username", "<username>")
-        url = f"git remote set-url origin https://github.com/{github_username}/{name}"
-        todos.append(f"Set git remote: (e.g.) {url}")
-    return "\n* ".join(todos)
+        git_username = formatters.get("git_username", "<username>")
+        git_url = GIT_URLS[git].format(git_username=git_username, name=name)
+        add_remote = f"git remote add origin {git_url}"
+        set_remote = f"git remote set-url origin {git_url}"
+        os.chdir(name)
+        subprocess.call(add_remote.split())
+        print(f"Added remote 'origin': {git_url}")
+        subprocess.call(set_remote.split())
+        print(f"Set remote: {git_url}")
+        os.chdir("..")
+    todos = "\n* ".join(todos)
+    # right now, there is always at least one todo note (do tests!)
+    cd = f"`cd {name}`"
+    final = f"\nAll done! {cd} to check out your new project.\n\nTo do:\n\n* {todos}"
+    print(todos)
 
 
 def _filter_excluded(exclude):
@@ -296,7 +315,7 @@ def _input_wrap(prompt, default=None):
         print("Error: answer not understood. You can 'quit' or hit ctrl+c to exit.")
 
 
-def _interactive(name):
+def _interactive(git, name):
     """
     Interactive assistant. This will supercede any command line arguments, meaning
     that it is pointless to add any other arguments when using the -i argument.
@@ -312,7 +331,7 @@ def _interactive(name):
     _input_wrap(prompt)
     output = dict()
     # attempt to get some variables from shell. not sure how this looks when absent
-    usr = _obtain_github_username(name)
+    usr = _obtain_git_username(git, name)
     email = "git config user.email".split()
     email = subprocess.check_output(email).decode("utf-8").strip()
     real_name = "git config user.name".split()
@@ -325,26 +344,26 @@ def _interactive(name):
         ("real_name", "Real name (for license, setup.py) ({default}):  ", real_name),
         ("username", "Username ({default}):  ", usr),
         ("email", "Email ({default}):  ", email),
-        ("github_username", "GitHub username ({default}):  ", usr),
+        ("git_username", "GitHub/GitLab/Bitbucket username ({default}):  ", usr),
         ("description", "Short project description:  ", None),
         # ("license", "Licence to use ({default}):  ", "MIT"),
         ("mkdocs", "Use mkdocs/readthedocs for documentation (y/N):  ", False),
         ("virtualenv", "Generate a virtualenv for this project (y/N):  ", False),
-        ("git", "Initialise as a git repo (y/N):  ", False),
+        ("git", "Git host to use (github,gitlab,bitbucket/None):  ", None),
         ("exclude", exes, set()),
     ]
 
     for field, prompt, default in prompts:
         output[field] = _input_wrap(prompt, default)
-    return output
+    return output.pop("git"), output
 
 
-def sire(name, interactive=False, exclude=None):
+def sire(name, git=None, interactive=False, exclude=None):
     """
     Generate a new Python 3.7 project, optionally with .git, virtualenv and
     mkthedocs basics present too.
     """
-    formatters = dict() if not interactive else _interactive(name)
+    git, formatters = git, dict() if not interactive else _interactive(git, name)
 
     # print abspath because user might want it for copying...
     dirname = os.path.abspath(f"./{name}")
@@ -365,7 +384,7 @@ def sire(name, interactive=False, exclude=None):
     if "git" not in exclude:
         subprocess.call(f"git init {name}".split())
         paths.update({".gitignore", ".pre-commit-config.yaml"})
-        formatters["github_username"] = _obtain_github_username(name)
+        formatters["git_username"] = _obtain_git_username(git, name)
 
     # mkdocs extras
     if "mkdocs" not in exclude:
@@ -385,13 +404,8 @@ def sire(name, interactive=False, exclude=None):
     if "virtualenv" not in exclude:
         _build_virtualenv(name)
 
-    # create our string of todo notes based on excludes
-    todos = _make_todos(name, paths, exclude, formatters)
-
-    final = f"\nAll done! `cd {name}` to check out your new project."
-    if todos:
-        final += f"\n\nTo do:\n\n* {todos}\n"
-    print(final)
+    # print todos, so that the user can quickly copy and paste urls etc.
+    _show_todos(name, paths, exclude, formatters, git)
 
 
 def wrapped_sire(*args):

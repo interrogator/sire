@@ -22,13 +22,15 @@ git clone https://github.com/interrogator/sire && cd sire && python.setup.py ins
 
 Use the `-m`, `-v` and `-g` flags to configure *mkdocs*, *virtualenv* and *git*.
 
+`-g` should be one of: `'github'`, `'gitlab'` or `'bitbuckeet'`.
+
 The `-e` flag takes a comma-separated list of items to exclude.
 
 ```bash
-sire --mkdocs --virtualenv --git --exclude=mypy,LICENSE <project_name>
+sire --mkdocs --virtualenv --git=github --exclude=mypy,LICENSE <project_name>
 ```
 
-Result of `sire -v -g -m demo`:
+Result of `sire -v -g=bitbucket -m demo`:
 
 ```
 demo
