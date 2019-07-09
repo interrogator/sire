@@ -10,3 +10,4 @@ bump2version
 twine
 
 # Requirements of the package
+requests

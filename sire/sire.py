@@ -10,6 +10,8 @@ import shutil
 import stat
 import subprocess
 import sys
+import re
+import requests
 
 from .string_matches import BADLINES
 
@@ -156,6 +158,29 @@ def _locate_templates():
     raise ValueError(f"No templates found in: {dirs}")
 
 
+def _obtain_github_username(name):
+    """
+    if the user under which this script runs has enabled ssh
+    access to github with their pubkey this will retrieve
+    their github username. if ssh does not work out see if
+    a project with the username/name already exists on github.
+    if it does assume that is the correct username.
+    """
+    command = 'ssh -o "StrictHostKeyChecking=no" -T git@github.com'
+    find_name_regex = r"Hi ([a-zA-Z\d]{2,40})\!"
+
+    result = subprocess.run(
+        command, shell=True, stderr=subprocess.PIPE, universal_newlines=True
+    )
+    match = re.search(find_name_regex, result.stderr)
+    if match:
+        return match.group(1)
+    url = f"http://github.com/{getpass.getuser()}/{name}"
+    if requests.get(url).ok:
+        return getpass.getuser()
+    return False
+
+
 # directory containing our templates
 TEMPLATES = _locate_templates()
 
@@ -286,7 +311,7 @@ def _interactive(name):
     _input_wrap(prompt)
     output = dict()
     # attempt to get some variables from shell. not sure how this looks when absent
-    usr = getpass.getuser()
+    usr = _obtain_github_username(name)
     email = "git config user.email".split()
     email = subprocess.check_output(email).decode("utf-8").strip()
     real_name = "git config user.name".split()
@@ -339,6 +364,7 @@ def sire(name, interactive=False, exclude=None):
     if "git" not in exclude:
         subprocess.call(f"git init {name}".split())
         paths.update({".gitignore", ".pre-commit-config.yaml"})
+        formatters["github_username"] = _obtain_github_username(name)
 
     # mkdocs extras
     if "mkdocs" not in exclude:
