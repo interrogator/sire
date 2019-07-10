@@ -11,10 +11,9 @@ import shutil
 import stat
 import subprocess
 import sys
+from typing import Any, Mapping
 
 import requests
-
-from typing import Mapping, Any
 
 from .string_matches import BADLINES
 
