@@ -42,7 +42,7 @@ PATHS = {
 
 # translate between user input for exclude and the pip name, so we can remove
 # unused things from requirements
-MODULE_TRANSLATION = {"codecoverage": "codecov", "bumpversion.cfg": "bump2version"}
+MODULE_TRANSLATION = dict(codecoverage="codecov", bumpversion="bump2version")
 
 # we use these to format help for the user
 SHORT_PATHS = [
@@ -171,7 +171,7 @@ def _obtain_git_username(git, name):
     try to figure out the username for a given git remote and project name.
     """
     if git in {"github", "gitlab", "bitbucket"}:
-        command = 'ssh -o "StrictHostKeyChecking=no" -T git@github.com'
+        command = f'ssh -o "StrictHostKeyChecking=no" -T git@{git}.com'
         namefind = r"(?:Hi |logged in as |Welcome to GitLab, @)([a-zA-Z\d]{2,40})"
     else:
         raise NotImplementedError(f"Git host {git} not implemented yet. Make an issue?")
@@ -256,8 +256,7 @@ def _show_todos(name, paths, exclude, formatters, git):
     todos = "\n* ".join(todos)
     # right now, there is always at least one todo note (do tests!)
     cd = f"`cd {name}`"
-    final = f"\nAll done! {cd} to check out your new project.\n\nTo do:\n\n* {todos}"
-    print(todos)
+    print(f"\nAll done! {cd} to check out your new project.\n\nTo do:\n\n* {todos}")
 
 
 def _filter_excluded(exclude):
