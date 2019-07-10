@@ -15,8 +15,8 @@ jobs:
       script:
         - flake8 sire/ tests/ setup.py
         - mypy sire/ tests/ setup.py
-        - black sire/* tests/* setup.py --check
-        - isort -m 3 -tc -c sire/* tests/* setup.py
+        - black sire/ tests/ setup.py --check
+        - isort -m 3 -tc -c sire/*.py tests/*.py setup.py
     - stage: test
       script:  # just coverage
         - coverage run -m unittest

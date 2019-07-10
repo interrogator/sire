@@ -14,6 +14,8 @@ import sys
 
 import requests
 
+from typing import Mapping, Any
+
 from .string_matches import BADLINES
 
 GIT_URLS = dict(
@@ -90,7 +92,7 @@ def _parse_cmdline_args():
     Command line argument parsing. Doing it here means less duplication than
     would be the case in bin/
 
-    Returns a tuple of project_name (str), git (str), interactive (bool) and exclude (set)
+    Returns tuple of project_name (str), git (str), interactive (bool), exclude (set)
     """
     parser = argparse.ArgumentParser(description="sire a new Python 3.7 project.")
     paths = "/".join(sorted(SHORT_PATHS))
@@ -177,8 +179,10 @@ def _obtain_git_username(git, name):
         raise NotImplementedError(f"Git host {git} not implemented yet. Make an issue?")
 
     # first try: see if we can get a good response from our host
-    request_params = dict(shell=True, stderr=subprocess.PIPE, universal_newlines=True)
-    result = subprocess.run(command, **request_params)
+    prms: Mapping[str, Any] = dict(
+        shell=True, stderr=subprocess.PIPE, universal_newlines=True
+    )
+    result = subprocess.run(command, **prms)
     match = re.search(namefind, result.stderr)
     if match:
         return match.group(1)
@@ -253,10 +257,10 @@ def _show_todos(name, paths, exclude, formatters, git):
         subprocess.call(set_remote.split())
         print(f"Set remote: {git_url}")
         os.chdir("..")
-    todos = "\n* ".join(todos)
+    form = "\n* ".join(todos)
     # right now, there is always at least one todo note (do tests!)
     cd = f"`cd {name}`"
-    print(f"\nAll done! {cd} to check out your new project.\n\nTo do:\n\n* {todos}")
+    print(f"\nAll done! {cd} to check out your new project.\n\nTo do:\n\n* {form}")
 
 
 def _filter_excluded(exclude):
