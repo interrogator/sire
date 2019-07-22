@@ -33,6 +33,6 @@ setup(
     author_email="mcddjx@gmail.com",
     license="MIT",
     keywords=[],
-    install_requires=[],
+    install_requires=["requests"],
     dependency_links=[],
 )
